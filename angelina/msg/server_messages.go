@@ -1,6 +1,9 @@
 package msg
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"strconv"
+)
 
 func newBytes(old []byte) []byte {
 	ret := make([]byte, len(old))
@@ -14,11 +17,11 @@ var userList = []byte("S_UserList ")
 // users that are available to attach to.
 func ServerUserList(users []string) ([]byte, error) {
 	ret := newBytes(userList)
-	userBytes, err := json.Marshal(users)
+	b, err := json.Marshal(users)
 	if err != nil {
 		return nil, err
 	}
-	ret = append(ret, userBytes...)
+	ret = append(ret, b...)
 	return ret, nil
 }
 
@@ -28,7 +31,11 @@ var serverNewUser = []byte("S_NewUser ")
 // connected through Rhine and is available to attach to.
 func ServerNewUser(user string) ([]byte, error) {
 	ret := newBytes(serverNewUser)
-	ret = append(ret, []byte(user)...)
+	b, err := json.Marshal(user)
+	if err != nil {
+		return nil, err
+	}
+	ret = append(ret, b...)
 	return ret, nil
 }
 
@@ -38,7 +45,11 @@ var serverAttached = []byte("S_Attached ")
 // attached to a user.
 func ServerAttached(user string) ([]byte, error) {
 	ret := newBytes(serverAttached)
-	ret = append(ret, []byte(user)...)
+	b, err := json.Marshal(user)
+	if err != nil {
+		return nil, err
+	}
+	ret = append(ret, b...)
 	return ret, nil
 }
 
@@ -53,17 +64,21 @@ func ServerDetach() ([]byte, error) {
 var serverHooked = []byte("S_Hooked ")
 
 type serverHookedT struct {
+	ID     string `json:"id"`
 	Kind   string `json:"type"`
 	Target string `json:"target"`
+	Event  bool   `json:"event,omitempty"`
 }
 
 // ServerHooked creates a message to notify the client that they have successfully
 // registered a hook for an event.
-func ServerHooked(kind, target string) ([]byte, error) {
+func ServerHooked(id uint64, kind, target string, event bool) ([]byte, error) {
 	ret := newBytes(serverHooked)
 	res, err := json.Marshal(serverHookedT{
+		ID:     strconv.FormatUint(id, 10),
 		Kind:   kind,
 		Target: target,
+		Event:  event,
 	})
 	if err != nil {
 		return nil, err
@@ -75,8 +90,10 @@ func ServerHooked(kind, target string) ([]byte, error) {
 var serverUnhooked = []byte("S_Unhooked ")
 
 type serverUnhookedT struct {
+	ID     string `json:"id"`
 	Kind   string `json:"type"`
 	Target string `json:"target"`
+	Event  bool   `json:"event,omitempty"`
 }
 
 // ServerUnhooked creates a message to notify that they have successfully unhooked
@@ -97,9 +114,10 @@ func ServerUnhooked(kind, target string) ([]byte, error) {
 var serverHookEvt = []byte("S_HookEvt ")
 
 type serverHookEvtT struct {
+	ID     string      `json:"id"`
 	Kind   string      `json:"type"`
 	Target string      `json:"target"`
-	Data   interface{} `json:"data"`
+	Data   interface{} `json:"data,omitempty"`
 }
 
 // ServerHookEvt notifies the client when a hook generates an event.

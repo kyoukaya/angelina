@@ -3,7 +3,8 @@ Package msg provides marshalling and unmarshalling functions for messages over
 websockets. Messages are formatted as such:
 	{OP_CODE} {PAYLOAD}
 With a single space delimiting the op code from the payload. Where the payload
-is a json value but may be omitted if no payload is necessary.
+is a json value, i.e., a json string/array/number/object, but may be omitted
+if no payload is necessary.
 
 Messages from the server to the client:
 S_UserList - Sent on first connection with Angelina
@@ -16,19 +17,26 @@ S_Detached - When the connected user is disconnected
 	No payload.
 S_Hooked - On successful hook request.
 	{
+		"id": "string",  // Required for unhooking
 		"type": "string",  // 'gamestate' or 'packet'
-		"target": "string"
+		"target": "string",
+		"event": "boolean"  // Optional, false if not sent
 	}
 S_Unhooked - On successful unhook request.
 	{
+		"id": "string",
 		"type": "string",  // 'gamestate' or 'packet'
-		"target": "string"
+		"target": "string",
+		"event": "boolean"  // Optional, false if not sent
 	}
 S_HookEvt - Sent when a hook generates an event.
 	{
+		"id": "string",  // Hook ID that generated the event
 		"type": "string",  // 'gamestate' or 'packet'
 		"target": "string",
-		"data": "data object"  // JSON type may vary depending on the hook target
+		// data's JSON type may vary depending on the hook target.
+		// Omitted if the hook is an event type
+		"data": "data object"
 	}
 S_Error - Sent when an error was generated while handling of a request.
 	{

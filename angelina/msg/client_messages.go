@@ -5,6 +5,7 @@ import "encoding/json"
 type Hook struct {
 	Kind   string `json:"type"`
 	Target string `json:"target"`
+	Event  bool   `json:"event,omitempty"`
 }
 
 // UnmarshalClientHook unmarshals the payload of C_Hook and C_Unhook messages.
