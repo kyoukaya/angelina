@@ -2,6 +2,18 @@ package msg
 
 import "encoding/json"
 
+func UnmarshalClientAttach(payload []byte) (string, error) {
+	var str string
+	err := json.Unmarshal(payload, &str)
+	return str, err
+}
+
+func UnmarshalClientGet(payload []byte) (string, error) {
+	var str string
+	err := json.Unmarshal(payload, &str)
+	return str, err
+}
+
 type Hook struct {
 	Kind   string `json:"type"`
 	Target string `json:"target"`

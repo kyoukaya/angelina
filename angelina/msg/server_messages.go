@@ -138,20 +138,20 @@ func ServerHookEvt(kind, target string, data interface{}) ([]byte, error) {
 var serverError = []byte("S_Error ")
 
 type serverErrorT struct {
+	Error   string `json:"error"`
 	Request string `json:"request"`
-	Error   error  `json:"error"`
 }
 
 // ServerError creates a message to notify the client that an error has occurred
 // during the handling of a request.
-func ServerError(request []byte, err error) ([]byte, error) {
+func ServerError(request []byte, err string) ([]byte, error) {
 	ret := newBytes(serverError)
-	res, err := json.Marshal(serverErrorT{
-		Request: string(request),
+	res, mErr := json.Marshal(serverErrorT{
 		Error:   err,
+		Request: string(request),
 	})
-	if err != nil {
-		return nil, err
+	if mErr != nil {
+		return nil, mErr
 	}
 	ret = append(ret, res...)
 	return ret, nil

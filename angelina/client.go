@@ -6,7 +6,6 @@ package angelina
 
 import (
 	"bytes"
-	"log"
 	"net/http"
 	"time"
 
@@ -50,6 +49,7 @@ func (c *Client) sendWrapper(data []byte) {
 	select {
 	case c.send <- data:
 	default:
+		c.hub.Warnf("Failed to send data to %p, closing ws", c)
 		close(c.send)
 		delete(c.hub.clients, c)
 	}
@@ -72,12 +72,12 @@ func (c *Client) readPump() {
 		_, msg, err := c.conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				log.Printf("error: %v", err)
+				c.hub.Warnf("error: %v", err)
 			}
 			break
 		}
 		msg = bytes.TrimSpace(bytes.Replace(msg, newline, space, -1))
-		c.hub.messages <- &message{
+		c.hub.messages <- &messageT{
 			client:  c,
 			payload: msg,
 		}

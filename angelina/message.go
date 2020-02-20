@@ -1,6 +1,6 @@
 package angelina
 
-type message struct {
+type messageT struct {
 	client  *Client
 	payload []byte
 }

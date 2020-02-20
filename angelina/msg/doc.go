@@ -57,9 +57,6 @@ C_Hook
 		"target": "string"
 	}
 C_Unhook
-	{
-		"type": "string",  // 'gamestate' or 'packet'
-		"target": "string"
-	}
+	"string"  // Hook ID
 */
 package msg

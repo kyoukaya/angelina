@@ -18,21 +18,19 @@ var (
 type Hub struct {
 	log.Logger
 
-	users   map[string][]*Client
+	// Maps a user ID to a slice of attached clients
+	attachedClients map[string][]*Client
+	// Maps a user ID to their RhineModule
 	modules map[string]*proxy.RhineModule
+	// Registered clients.
+	clients map[*Client]bool
 
 	// Inbound messages from modules when they are initialized.
 	modAttach chan *proxy.RhineModule
 	// Inbound messages from modules indicating a shutdown.
 	modDetach chan *proxy.RhineModule
-
-	// Hub maintains the set of active clients and broadcasts messages to the
-	// clients.
-	// Registered clients.
-	clients map[*Client]bool
-
 	// Inbound messages from the clients.
-	messages chan *message
+	messages chan *messageT
 	// Register requests from the clients.
 	register chan *Client
 	// Unregister requests from clients.
@@ -44,15 +42,15 @@ func start(logger log.Logger) {
 		flag.Parse()
 	}
 	ange := &Hub{
-		Logger:     logger,
-		modAttach:  make(chan *proxy.RhineModule),
-		modDetach:  make(chan *proxy.RhineModule),
-		modules:    make(map[string]*proxy.RhineModule),
-		users:      make(map[string][]*Client),
-		messages:   make(chan *message),
-		register:   make(chan *Client),
-		unregister: make(chan *Client),
-		clients:    make(map[*Client]bool),
+		Logger:          logger,
+		attachedClients: make(map[string][]*Client),
+		modules:         make(map[string]*proxy.RhineModule),
+		clients:         make(map[*Client]bool),
+		modAttach:       make(chan *proxy.RhineModule),
+		modDetach:       make(chan *proxy.RhineModule),
+		messages:        make(chan *messageT),
+		register:        make(chan *Client),
+		unregister:      make(chan *Client),
 	}
 	go ange.run()
 	mux := http.NewServeMux()
