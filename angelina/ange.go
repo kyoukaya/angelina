@@ -72,7 +72,7 @@ func start(logger log.Logger) {
 			panic(err)
 		}
 	}()
-	ange.Printf("Angelina listening on %s", *host)
+	ange.Printf("[Ange] listening on %s", *host)
 }
 
 func init() {

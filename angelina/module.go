@@ -6,7 +6,7 @@ import (
 	"github.com/kyoukaya/rhine/proxy"
 )
 
-const modName = "Angelina"
+const modName = "Angelina Module"
 
 // angeModule is a Rhine module that serves as an interface for angelina to
 // create and destroy hooks.

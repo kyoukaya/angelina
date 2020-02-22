@@ -27,7 +27,7 @@ S_Unhooked - On successful unhook request.
 		"id": "string",
 		"type": "string",  // 'gamestate' or 'packet'
 		"target": "string",
-		"event": "boolean"  // Optional, false if not sent
+		"event": "boolean"
 	}
 S_HookEvt - Sent when a hook generates an event.
 	{
@@ -55,7 +55,7 @@ C_Hook
 	{
 		"type": "string",  // 'gamestate' or 'packet'
 		"target": "string",
-		"event": "boolean"
+		"event": "boolean"  // Optional, defaults to false
 	}
 C_Unhook
 	"string"  // Hook ID

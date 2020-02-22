@@ -89,21 +89,11 @@ func ServerHooked(id uint64, kind, target string, event bool) ([]byte, error) {
 
 var serverUnhooked = []byte("S_Unhooked ")
 
-type serverUnhookedT struct {
-	ID     string `json:"id"`
-	Kind   string `json:"type"`
-	Target string `json:"target"`
-	Event  bool   `json:"event,omitempty"`
-}
-
 // ServerUnhooked creates a message to notify that they have successfully unhooked
 // for an event.
-func ServerUnhooked(kind, target string) ([]byte, error) {
+func ServerUnhooked(id uint64) ([]byte, error) {
 	ret := newBytes(serverUnhooked)
-	res, err := json.Marshal(serverUnhookedT{
-		Kind:   kind,
-		Target: target,
-	})
+	res, err := json.Marshal(strconv.FormatUint(id, 10))
 	if err != nil {
 		return nil, err
 	}
@@ -114,7 +104,6 @@ func ServerUnhooked(kind, target string) ([]byte, error) {
 var serverHookEvt = []byte("S_HookEvt ")
 
 type serverHookEvtT struct {
-	ID     string      `json:"id"`
 	Kind   string      `json:"type"`
 	Target string      `json:"target"`
 	Data   interface{} `json:"data,omitempty"`

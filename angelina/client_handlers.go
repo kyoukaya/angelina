@@ -2,6 +2,7 @@ package angelina
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/kyoukaya/angelina/angelina/msg"
 )
@@ -44,14 +45,15 @@ func handleCAttach(h *Hub, client *Client, payload []byte) error {
 
 func handleCDetach(h *Hub, client *Client, payload []byte) error {
 	if client.mod == nil {
-		return fmt.Errorf("User was not attached")
+		return fmt.Errorf("Client was not attached")
 	}
-	h.detachClient(client)
+	client.unhookAll()
 
 	ret, err := msg.ServerDetach()
 	if err != nil {
 		return err
 	}
+	client.mod = nil
 	client.sendWrapper(ret)
 	return nil
 }
@@ -61,9 +63,33 @@ func handleCGet(h *Hub, client *Client, payload []byte) error {
 }
 
 func handleCHook(h *Hub, client *Client, payload []byte) error {
-	return nil
+	if client.mod == nil {
+		return fmt.Errorf("Client is not attached")
+	}
+	data, err := msg.UnmarshalClientHook(payload)
+	if err != nil {
+		return err
+	}
+	return client.addHook(data)
 }
 
 func handleCUnhook(h *Hub, client *Client, payload []byte) error {
+	idStr, err := msg.UnmarshalClientUnhook(payload)
+	if err != nil {
+		return err
+	}
+	id, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil {
+		return err
+	}
+	err = client.removeHook(id)
+	if err != nil {
+		return err
+	}
+	ret, err := msg.ServerUnhooked(id)
+	if err != nil {
+		return err
+	}
+	client.sendWrapper(ret)
 	return nil
 }

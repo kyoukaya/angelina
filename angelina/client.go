@@ -1,16 +1,18 @@
-// Copyright 2013 The Gorilla WebSocket Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
-
 package angelina
 
 import (
 	"bytes"
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
+	"github.com/elazarl/goproxy"
 	"github.com/gorilla/websocket"
 	"github.com/kyoukaya/rhine/proxy"
+	"github.com/kyoukaya/rhine/proxy/gamestate"
+
+	"github.com/kyoukaya/angelina/angelina/msg"
 )
 
 const (
@@ -36,8 +38,11 @@ var upgrader = websocket.Upgrader{
 
 // Client is a middleman between the websocket connection and the hub.
 type Client struct {
-	hub *Hub
-	mod *proxy.RhineModule
+	hub         *Hub
+	mod         *proxy.RhineModule
+	hookCounter uint64
+	hooks       map[uint64]*clientHook
+	listener    chan gamestate.StateEvent
 
 	// The websocket connection.
 	conn *websocket.Conn
@@ -56,6 +61,74 @@ func (c *Client) sendWrapper(data []byte) {
 	}
 }
 
+func (c *Client) removeHook(id uint64) error {
+	hook := c.hooks[id]
+	if hook == nil {
+		return fmt.Errorf("Unable to find hook ID %d to unhook", id)
+	}
+	hook.Unhook()
+	delete(c.hooks, id)
+	return nil
+}
+
+func (c *Client) unhookAll() {
+	for k, hook := range c.hooks {
+		hook.Unhook()
+		delete(c.hooks, k)
+	}
+}
+
+func (c *Client) addHook(data *msg.Hook) error {
+	var hook proxy.Hooker
+	switch data.Kind {
+	case packetHook:
+		hook = c.mod.Hook(data.Target, 0, c.hookHandler)
+	case gameStateHook:
+		hook = c.mod.StateHook(data.Target, c.listener, !data.Event)
+	default:
+		return fmt.Errorf("Unknown hook type '%s'", data.Kind)
+	}
+	c.hooks[c.hookCounter] = &clientHook{
+		kind:   data.Kind,
+		target: data.Target,
+		event:  data.Event,
+		hook:   hook,
+	}
+
+	ret, err := msg.ServerHooked(c.hookCounter, data.Kind, data.Target, data.Event)
+	if err != nil {
+		return err
+	}
+	c.hookCounter++
+	c.sendWrapper(ret)
+	return nil
+}
+
+func (c *Client) hookHandler(op string, data []byte, pktCtx *goproxy.ProxyCtx) []byte {
+	b, err := msg.ServerHookEvt(packetHook, op, json.RawMessage(data))
+	if err != nil {
+		c.hub.Warnln("[Ange] ", err)
+		return data
+	}
+	c.sendWrapper(b)
+	return data
+}
+
+func (c *Client) stateListener() {
+	for {
+		l, open := <-c.listener
+		if !open {
+			return
+		}
+		b, err := msg.ServerHookEvt(gameStateHook, l.Path, l.Payload)
+		if err != nil {
+			c.hub.Warnln("[Ange] ", err)
+			continue
+		}
+		c.sendWrapper(b)
+	}
+}
+
 // readPump pumps messages from the websocket connection to the hub.
 //
 // The application runs readPump in a per-connection goroutine. The application
@@ -69,7 +142,7 @@ func (c *Client) readPump() {
 	// c.conn.SetReadLimit(maxMessageSize)
 	err := c.conn.SetReadDeadline(time.Now().Add(pongWait))
 	if err != nil {
-		c.hub.Warnf("[Ange] %s", err.Error())
+		c.hub.Warnln("[Ange] ", err)
 		return
 	}
 	c.conn.SetPongHandler(func(string) error {
@@ -79,7 +152,7 @@ func (c *Client) readPump() {
 		_, msg, err := c.conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				c.hub.Warnf("[Ange] error: %v", err)
+				c.hub.Warnln("[Ange] ", err)
 			}
 			break
 		}
@@ -110,14 +183,14 @@ func (c *Client) writePump() {
 			}
 			err := c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if err != nil {
-				c.hub.Warnf("[Ange] %s", err.Error())
+				c.hub.Warnln("[Ange] ", err)
 				continue
 			}
 			if !ok {
 				// The hub closed the channel.
 				err = c.conn.WriteMessage(websocket.CloseMessage, []byte{})
 				if err != nil {
-					c.hub.Warnf("[Ange] %s", err.Error())
+					c.hub.Warnln("[Ange] ", err)
 				}
 				return
 			}
@@ -128,7 +201,7 @@ func (c *Client) writePump() {
 			}
 			_, err = w.Write(message)
 			if err != nil {
-				c.hub.Warnf("[Ange] %s", err.Error())
+				c.hub.Warnln("[Ange] ", err)
 				continue
 			}
 
@@ -137,12 +210,12 @@ func (c *Client) writePump() {
 			for i := 0; i < n; i++ {
 				_, err = w.Write(newline)
 				if err != nil {
-					c.hub.Warnf("[Ange] %s", err.Error())
+					c.hub.Warnln("[Ange] ", err)
 					continue
 				}
 				_, err = w.Write(<-c.send)
 				if err != nil {
-					c.hub.Warnf("[Ange] %s", err.Error())
+					c.hub.Warnln("[Ange] ", err)
 					continue
 				}
 			}
@@ -153,7 +226,7 @@ func (c *Client) writePump() {
 		case <-ticker.C:
 			err := c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if err != nil {
-				c.hub.Warnf("[Ange] %s", err.Error())
+				c.hub.Warnln("[Ange] ", err)
 				return
 			}
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
@@ -170,11 +243,16 @@ func (hub *Hub) ServeWs(w http.ResponseWriter, r *http.Request) {
 		hub.Warnf("[Ange] %s", err.Error())
 		return
 	}
-	client := &Client{hub: hub, conn: conn, send: make(chan []byte, 256)}
+	client := &Client{
+		hub:      hub,
+		hooks:    make(map[uint64]*clientHook),
+		listener: make(chan gamestate.StateEvent, 32),
+		conn:     conn,
+		send:     make(chan []byte, 128),
+	}
 	client.hub.register <- client
 
-	// Allow collection of memory referenced by the caller by doing all work in
-	// new goroutines.
+	go client.stateListener()
 	go client.writePump()
 	go client.readPump()
 }

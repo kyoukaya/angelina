@@ -25,7 +25,7 @@ func (h *Hub) run() {
 			}
 			res, err := msg.ServerUserList(users)
 			if err != nil {
-				h.Warnf("[Ange] %s", err.Error())
+				h.Warnln("[Ange] ", err)
 				h.sendErrorWrapper(client, err, []byte("register"))
 				continue
 			}
@@ -33,7 +33,7 @@ func (h *Hub) run() {
 		// Handle ws client disconnects
 		case client := <-h.unregister:
 			if _, ok := h.clients[client]; ok {
-				h.detachClient(client)
+				h.cleanupClient(client)
 				delete(h.clients, client)
 				close(client.send)
 			}
@@ -46,7 +46,7 @@ func (h *Hub) run() {
 			h.modules[userID] = mod
 			res, err := msg.ServerNewUser(userID)
 			if err != nil {
-				h.Warnf("[Ange] %s", err.Error())
+				h.Warnln("[Ange] ", err)
 				continue
 			}
 			for client := range h.clients {
@@ -58,7 +58,7 @@ func (h *Hub) run() {
 			delete(h.modules, userID)
 			detachMsg, err := msg.ServerDetach()
 			if err != nil {
-				h.Warnf("[Ange] %s", err.Error())
+				h.Warnln("[Ange] ", err)
 				continue
 			}
 			for _, user := range h.attachedClients[userID] {
@@ -84,7 +84,7 @@ func (h *Hub) dispatch(m *messageT) {
 	handler, exists := clientHandlerMap[string(op)]
 	if !exists {
 		err := fmt.Errorf("[Ange] Unknown opcode '%s' received", op)
-		h.Warnf("[Ange] %s", err.Error())
+		h.Warnln("[Ange] ", err)
 		h.sendErrorWrapper(m.client, err, m.payload)
 		return
 	}
@@ -97,13 +97,13 @@ func (h *Hub) dispatch(m *messageT) {
 func (h *Hub) sendErrorWrapper(c *Client, err error, message []byte) {
 	b, err := msg.ServerError(message, err.Error())
 	if err != nil {
-		h.Warnf("[Ange] %s", err.Error())
+		h.Warnln("[Ange] ", err)
 		return
 	}
 	c.sendWrapper(b)
 }
 
-func (h *Hub) detachClient(client *Client) {
+func (h *Hub) cleanupClient(client *Client) {
 	var newClients []*Client
 	id := getModIdentifier(client.mod)
 	for _, c := range h.attachedClients[id] {
@@ -114,5 +114,5 @@ func (h *Hub) detachClient(client *Client) {
 	}
 	h.attachedClients[id] = newClients
 	client.mod = nil
-	// TODO: Unhook client's hooks
+	client.unhookAll()
 }
