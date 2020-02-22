@@ -21,14 +21,14 @@ type Hub struct {
 	// Maps a user ID to a slice of attached clients
 	attachedClients map[string][]*Client
 	// Maps a user ID to their RhineModule
-	modules map[string]*proxy.RhineModule
+	modules map[string]*angeModule
 	// Registered clients.
 	clients map[*Client]bool
 
 	// Inbound messages from modules when they are initialized.
-	modAttach chan *proxy.RhineModule
+	modAttach chan *angeModule
 	// Inbound messages from modules indicating a shutdown.
-	modDetach chan *proxy.RhineModule
+	modDetach chan *angeModule
 	// Inbound messages from the clients.
 	messages chan *messageT
 	// Register requests from the clients.
@@ -44,10 +44,10 @@ func start(logger log.Logger) {
 	ange := &Hub{
 		Logger:          logger,
 		attachedClients: make(map[string][]*Client),
-		modules:         make(map[string]*proxy.RhineModule),
+		modules:         make(map[string]*angeModule),
 		clients:         make(map[*Client]bool),
-		modAttach:       make(chan *proxy.RhineModule),
-		modDetach:       make(chan *proxy.RhineModule),
+		modAttach:       make(chan *angeModule),
+		modDetach:       make(chan *angeModule),
 		messages:        make(chan *messageT),
 		register:        make(chan *Client),
 		unregister:      make(chan *Client),
@@ -68,7 +68,7 @@ func start(logger log.Logger) {
 	go func() {
 		err := http.ListenAndServe(*host, mux)
 		if err != nil {
-			ange.Warnln("ListenAndServe: ", err)
+			ange.Warnln("[Ange] ListenAndServe: ", err)
 			panic(err)
 		}
 	}()

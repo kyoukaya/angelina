@@ -22,15 +22,16 @@ func handleCAttach(h *Hub, client *Client, payload []byte) error {
 		return err
 	}
 
-	if client.user != "" {
-		return fmt.Errorf("Client is already connected to user '%s'", client.user)
+	if client.mod != nil {
+		return fmt.Errorf("Client is already connected to user '%s'", getModIdentifier(client.mod))
 	}
 
-	if _, exists := h.modules[id]; !exists {
+	mod, exists := h.modules[id]
+	if !exists {
 		return fmt.Errorf("User '%s' is not connected", id)
 	}
 
-	client.user = id
+	client.mod = mod.RhineModule
 	h.attachedClients[id] = append(h.attachedClients[id], client)
 
 	ret, err := msg.ServerAttached(id)
@@ -42,7 +43,7 @@ func handleCAttach(h *Hub, client *Client, payload []byte) error {
 }
 
 func handleCDetach(h *Hub, client *Client, payload []byte) error {
-	if client.user == "" {
+	if client.mod == nil {
 		return fmt.Errorf("User was not attached")
 	}
 	h.detachClient(client)

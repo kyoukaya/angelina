@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/kyoukaya/rhine/proxy"
 )
 
 const (
@@ -35,8 +36,8 @@ var upgrader = websocket.Upgrader{
 
 // Client is a middleman between the websocket connection and the hub.
 type Client struct {
-	hub  *Hub
-	user string
+	hub *Hub
+	mod *proxy.RhineModule
 
 	// The websocket connection.
 	conn *websocket.Conn
@@ -49,7 +50,7 @@ func (c *Client) sendWrapper(data []byte) {
 	select {
 	case c.send <- data:
 	default:
-		c.hub.Warnf("Failed to send data to %p, closing ws", c)
+		c.hub.Warnf("[Ange] Failed to send data to %p, closing ws", c)
 		close(c.send)
 		delete(c.hub.clients, c)
 	}
@@ -72,7 +73,7 @@ func (c *Client) readPump() {
 		_, msg, err := c.conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				c.hub.Warnf("error: %v", err)
+				c.hub.Warnf("[Ange] error: %v", err)
 			}
 			break
 		}
@@ -137,7 +138,7 @@ func (c *Client) writePump() {
 func (hub *Hub) ServeWs(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		hub.Warnln(err)
+		hub.Warnf("[Ange] %s", err.Error())
 		return
 	}
 	client := &Client{hub: hub, conn: conn, send: make(chan []byte, 256)}

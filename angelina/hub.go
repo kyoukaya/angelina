@@ -11,9 +11,11 @@ import (
 	"github.com/kyoukaya/angelina/angelina/msg"
 )
 
+// Main event loop
 func (h *Hub) run() {
 	for {
 		select {
+		// Handle new ws client connections
 		case client := <-h.register:
 			h.clients[client] = true
 			// Build and send S_UserList
@@ -23,42 +25,47 @@ func (h *Hub) run() {
 			}
 			res, err := msg.ServerUserList(users)
 			if err != nil {
-				h.Warnln(err)
+				h.Warnf("[Ange] %s", err.Error())
 				h.sendErrorWrapper(client, err, []byte("register"))
 				continue
 			}
 			client.sendWrapper(res)
+		// Handle ws client disconnects
 		case client := <-h.unregister:
 			if _, ok := h.clients[client]; ok {
 				h.detachClient(client)
 				delete(h.clients, client)
 				close(client.send)
 			}
+		// Handle messages from ws clients
 		case msg := <-h.messages:
 			h.dispatch(msg)
+		// Handle new RhineModule connection
 		case mod := <-h.modAttach:
-			userID := getModIdentifier(mod)
+			userID := getModIdentifier(mod.RhineModule)
 			h.modules[userID] = mod
 			res, err := msg.ServerNewUser(userID)
 			if err != nil {
-				h.Warnln(err)
+				h.Warnf("[Ange] %s", err.Error())
 				continue
 			}
 			for client := range h.clients {
 				client.sendWrapper(res)
 			}
+		// Handle new RhineModule disconnects
 		case mod := <-h.modDetach:
-			userID := getModIdentifier(mod)
+			userID := getModIdentifier(mod.RhineModule)
 			delete(h.modules, userID)
-			res, err := msg.ServerDetach()
+			detachMsg, err := msg.ServerDetach()
 			if err != nil {
-				h.Warnln(err)
+				h.Warnf("[Ange] %s", err.Error())
 				continue
 			}
 			for _, user := range h.attachedClients[userID] {
-				user.user = ""
-				user.sendWrapper(res)
+				user.mod = nil
+				user.sendWrapper(detachMsg)
 			}
+			h.attachedClients[userID] = nil
 		}
 	}
 }
@@ -66,7 +73,7 @@ func (h *Hub) run() {
 var spaceDemliter = []byte(" ")
 
 func (h *Hub) dispatch(m *messageT) {
-	h.Printf("received message from %p:%s", m.client, m.payload)
+	h.Verbosef("[Ange] received message from %p:%s", m.client, m.payload)
 	s := bytes.SplitN(m.payload, spaceDemliter, 2)
 	if len(s) == 1 {
 		s = append(s, nil)
@@ -76,8 +83,8 @@ func (h *Hub) dispatch(m *messageT) {
 	// Get handler
 	handler, exists := clientHandlerMap[string(op)]
 	if !exists {
-		err := fmt.Errorf("Unknown opcode '%s' received", op)
-		h.Warnln(err)
+		err := fmt.Errorf("[Ange] Unknown opcode '%s' received", op)
+		h.Warnf("[Ange] %s", err.Error())
 		h.sendErrorWrapper(m.client, err, m.payload)
 		return
 	}
@@ -90,7 +97,7 @@ func (h *Hub) dispatch(m *messageT) {
 func (h *Hub) sendErrorWrapper(c *Client, err error, message []byte) {
 	b, err := msg.ServerError(message, err.Error())
 	if err != nil {
-		h.Warnln(err)
+		h.Warnf("[Ange] %s", err.Error())
 		return
 	}
 	c.sendWrapper(b)
@@ -98,13 +105,14 @@ func (h *Hub) sendErrorWrapper(c *Client, err error, message []byte) {
 
 func (h *Hub) detachClient(client *Client) {
 	var newClients []*Client
-	for _, c := range h.attachedClients[client.user] {
+	id := getModIdentifier(client.mod)
+	for _, c := range h.attachedClients[id] {
 		if c == client {
 			continue
 		}
 		newClients = append(newClients, c)
 	}
-	h.attachedClients[client.user] = newClients
-	client.user = ""
+	h.attachedClients[id] = newClients
+	client.mod = nil
 	// TODO: Unhook client's hooks
 }

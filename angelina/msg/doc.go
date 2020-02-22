@@ -54,7 +54,8 @@ C_Get
 C_Hook
 	{
 		"type": "string",  // 'gamestate' or 'packet'
-		"target": "string"
+		"target": "string",
+		"event": "boolean"
 	}
 C_Unhook
 	"string"  // Hook ID
