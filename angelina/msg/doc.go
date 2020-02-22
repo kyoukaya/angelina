@@ -38,6 +38,11 @@ S_HookEvt - Sent when a hook generates an event.
 		// Omitted if the hook is an event type
 		"data": "data object"
 	}
+S_Get - Sent after the client sends a C_Get request if the get is successful.
+	{
+		"path": "string",
+		"data": "data object"
+	}
 S_Error - Sent when an error was generated while handling of a request.
 	{
 		"request": "string",  // The request message that generated the error

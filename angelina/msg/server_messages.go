@@ -124,6 +124,27 @@ func ServerHookEvt(kind, target string, data interface{}) ([]byte, error) {
 	return ret, nil
 }
 
+var serverGet = []byte("S_Get ")
+
+type serverGetT struct {
+	Path string      `json:"path"`
+	Data interface{} `json:"data,omitempty"`
+}
+
+// ServerGet creates a message relaying the results of their C_Get request.
+func ServerGet(path string, data interface{}) ([]byte, error) {
+	ret := newBytes(serverGet)
+	res, err := json.Marshal(serverGetT{
+		Path: path,
+		Data: data,
+	})
+	if err != nil {
+		return nil, err
+	}
+	ret = append(ret, res...)
+	return ret, nil
+}
+
 var serverError = []byte("S_Error ")
 
 type serverErrorT struct {

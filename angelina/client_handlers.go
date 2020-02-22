@@ -59,6 +59,22 @@ func handleCDetach(h *Hub, client *Client, payload []byte) error {
 }
 
 func handleCGet(h *Hub, client *Client, payload []byte) error {
+	if client.mod == nil {
+		return fmt.Errorf("Client is not attached")
+	}
+	path, err := msg.UnmarshalClientGet(payload)
+	if err != nil {
+		return err
+	}
+	val, err := client.mod.StateGet(path)
+	if err != nil {
+		return err
+	}
+	ret, err := msg.ServerGet(path, val)
+	if err != nil {
+		return err
+	}
+	client.sendWrapper(ret)
 	return nil
 }
 
