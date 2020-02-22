@@ -23,15 +23,9 @@ S_Hooked - On successful hook request.
 		"event": "boolean"  // Optional, false if not sent
 	}
 S_Unhooked - On successful unhook request.
-	{
-		"id": "string",
-		"type": "string",  // 'gamestate' or 'packet'
-		"target": "string",
-		"event": "boolean"
-	}
+	"string"
 S_HookEvt - Sent when a hook generates an event.
 	{
-		"id": "string",  // Hook ID that generated the event
 		"type": "string",  // 'gamestate' or 'packet'
 		"target": "string",
 		// data's JSON type may vary depending on the hook target.
@@ -50,19 +44,23 @@ S_Error - Sent when an error was generated while handling of a request.
 	}
 
 Messages from the client to the server:
-C_Attach
+C_Attach - C_Attach is sent from the websocket client to request for the server to
+attach them to the specified game user. A websocket client can only be attached to
+one user at a time and it is required for hooking and getting information from their game state.
 	"string"
-C_Detach
+C_Detach - unhooks all registered hooks and allows the websocket client to attach to another user.
 	No payload
-C_Get
+C_Get - requests a piece of information from the attached user's game state.
 	"string"
-C_Hook
+C_Hook - requests a hook to be made on either a certain packet being received or if there's
+a change to the gamestate in a certain path. The event value specifies if the websocket
+client only needs to be notified of the change or packet and not sent the data itself.
 	{
 		"type": "string",  // 'gamestate' or 'packet'
 		"target": "string",
 		"event": "boolean"  // Optional, defaults to false
 	}
-C_Unhook
+C_Unhook - stop listening on an event.
 	"string"  // Hook ID
 */
 package msg
