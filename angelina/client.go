@@ -67,8 +67,14 @@ func (c *Client) readPump() {
 		c.conn.Close()
 	}()
 	// c.conn.SetReadLimit(maxMessageSize)
-	c.conn.SetReadDeadline(time.Now().Add(pongWait))
-	c.conn.SetPongHandler(func(string) error { c.conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
+	err := c.conn.SetReadDeadline(time.Now().Add(pongWait))
+	if err != nil {
+		c.hub.Warnf("[Ange] %s", err.Error())
+		return
+	}
+	c.conn.SetPongHandler(func(string) error {
+		return c.conn.SetReadDeadline(time.Now().Add(pongWait))
+	})
 	for {
 		_, msg, err := c.conn.ReadMessage()
 		if err != nil {
@@ -102,10 +108,17 @@ func (c *Client) writePump() {
 			if len(message) == 0 {
 				continue
 			}
-			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			err := c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if err != nil {
+				c.hub.Warnf("[Ange] %s", err.Error())
+				continue
+			}
 			if !ok {
 				// The hub closed the channel.
-				c.conn.WriteMessage(websocket.CloseMessage, []byte{})
+				err = c.conn.WriteMessage(websocket.CloseMessage, []byte{})
+				if err != nil {
+					c.hub.Warnf("[Ange] %s", err.Error())
+				}
 				return
 			}
 
@@ -113,20 +126,36 @@ func (c *Client) writePump() {
 			if err != nil {
 				return
 			}
-			w.Write(message)
+			_, err = w.Write(message)
+			if err != nil {
+				c.hub.Warnf("[Ange] %s", err.Error())
+				continue
+			}
 
 			// Add queued chat messages to the current websocket message.
 			n := len(c.send)
 			for i := 0; i < n; i++ {
-				w.Write(newline)
-				w.Write(<-c.send)
+				_, err = w.Write(newline)
+				if err != nil {
+					c.hub.Warnf("[Ange] %s", err.Error())
+					continue
+				}
+				_, err = w.Write(<-c.send)
+				if err != nil {
+					c.hub.Warnf("[Ange] %s", err.Error())
+					continue
+				}
 			}
 
 			if err := w.Close(); err != nil {
 				return
 			}
 		case <-ticker.C:
-			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			err := c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if err != nil {
+				c.hub.Warnf("[Ange] %s", err.Error())
+				return
+			}
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 				return
 			}
