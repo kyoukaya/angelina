@@ -55,9 +55,7 @@ func (c *Client) sendWrapper(data []byte) {
 	select {
 	case c.send <- data:
 	default:
-		c.hub.Warnf("[Ange] Failed to send data to %p, closing ws", c)
-		close(c.send)
-		delete(c.hub.clients, c)
+		c.hub.Warnf("[Ange] Failed to send data to %p", c)
 	}
 }
 
@@ -151,7 +149,7 @@ func (c *Client) readPump() {
 	for {
 		_, msg, err := c.conn.ReadMessage()
 		if err != nil {
-			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure, websocket.CloseNormalClosure) {
 				c.hub.Warnln("[Ange] ", err)
 			}
 			break

@@ -25,13 +25,17 @@ func (h *Hub) run() {
 				h.sendErrorWrapper(client, err, []byte("register"))
 				continue
 			}
+			h.Printf("[Ange] new websocket client %p", client)
 			client.sendWrapper(res)
 		// Handle ws client disconnects
 		case client := <-h.unregister:
 			if _, ok := h.clients[client]; ok {
-				h.cleanupClient(client)
+				if client.mod != nil {
+					h.detachClient(client)
+				}
 				delete(h.clients, client)
 				close(client.send)
+				h.Printf("[Ange] websocket client disconnected %p", client)
 			}
 		// Handle messages from ws clients
 		case msg := <-h.messages:
@@ -99,20 +103,21 @@ func (h *Hub) sendErrorWrapper(c *Client, err error, message []byte) {
 	c.sendWrapper(b)
 }
 
-func (h *Hub) cleanupClient(client *Client) {
-	var newClients []*Client
-	// If the client is not attached, there's no state to clean up.
-	if client.mod == nil {
-		return
-	}
+// detachClient detaches a client from a user by updating book keeping in the Hub
+// and calling unhook on all their hooks. Calling this on a client that is not
+// attached will result in a panic.
+func (h *Hub) detachClient(client *Client) {
 	id := getModIdentifier(client.mod)
-	for _, c := range h.attachedClients[id] {
+	clients := h.attachedClients[id]
+	i := 0
+	for _, c := range clients {
 		if c == client {
-			continue
+			break
 		}
-		newClients = append(newClients, c)
+		i++
 	}
-	h.attachedClients[id] = newClients
+	h.attachedClients[id] = append(clients[:i], clients[i+1:]...)
 	client.mod = nil
 	client.unhookAll()
+	h.Printf("[Ange] detached %p from %s", client, id)
 }

@@ -47,13 +47,11 @@ func handleCDetach(h *Hub, client *Client, payload []byte) error {
 	if client.mod == nil {
 		return fmt.Errorf("Client was not attached")
 	}
-	client.unhookAll()
-
+	h.detachClient(client)
 	ret, err := msg.ServerDetach()
 	if err != nil {
 		return err
 	}
-	client.mod = nil
 	client.sendWrapper(ret)
 	return nil
 }
