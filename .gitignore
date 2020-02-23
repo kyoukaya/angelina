@@ -5,6 +5,11 @@
 *.log
 *.pem
 data/
+*.json
+
+# Python files
+venv/
+*.pyc
 
 # Binaries for programs and plugins
 *.exe
