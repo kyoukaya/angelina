@@ -178,21 +178,14 @@ func (c *Client) writePump() {
 	for {
 		select {
 		case message, ok := <-c.send:
-			if len(message) == 0 {
-				continue
+			if !ok {
+				// The hub closed the channel.
+				return
 			}
 			err := c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if err != nil {
 				c.hub.Warnln("[Ange] ", err)
 				continue
-			}
-			if !ok {
-				// The hub closed the channel.
-				err = c.conn.WriteMessage(websocket.CloseMessage, []byte{})
-				if err != nil {
-					c.hub.Warnln("[Ange] ", err)
-				}
-				return
 			}
 
 			w, err := c.conn.NextWriter(websocket.TextMessage)

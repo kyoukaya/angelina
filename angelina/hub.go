@@ -101,6 +101,10 @@ func (h *Hub) sendErrorWrapper(c *Client, err error, message []byte) {
 
 func (h *Hub) cleanupClient(client *Client) {
 	var newClients []*Client
+	// If the client is not attached, there's no state to clean up.
+	if client.mod == nil {
+		return
+	}
 	id := getModIdentifier(client.mod)
 	for _, c := range h.attachedClients[id] {
 		if c == client {
