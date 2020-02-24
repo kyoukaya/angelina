@@ -78,7 +78,9 @@ class Client:
             if v["tagList"] is None:
                 continue
             name = v["name"]
-            if name not in self.recruitableCharNames:
+            # Case insensitive check because of inconsistency in the client,
+            # e.g. FEater -> Feater.
+            if name.lower() not in self.recruitableCharNames:
                 continue
             data = {
                 "name": v["name"],
@@ -151,6 +153,8 @@ class Client:
         user: str = json.loads(payload)
         self.users.add(user)
         # Attempt to attach to a any new user
+        if self.attached_user != "":
+            await self.send_detach()
         await self.send_attach(user)
 
     async def handle_get(self, payload: str):
@@ -210,6 +214,9 @@ class Client:
             "C_Hook " + json.dumps({"type": type, "target": target, "event": event})
         )
 
+    async def send_detach(self):
+        await self.ws.send("C_Detach")
+
     async def recv_loop(self):
         try:
             while True:
@@ -242,6 +249,7 @@ def get_url(url: str):
 
 
 def parse_recruitable_chars(s: str) -> Set[str]:
+    # Returns the names of all the units in the recruitment pool in lower case.
     # Parsing relies on the star token delimiting rarities and that they will
     # always have a divider with "-" characters between the rarities.
     ret = set()
@@ -256,5 +264,5 @@ def parse_recruitable_chars(s: str) -> Set[str]:
         s2 = re.sub(r"<.*?>", "", s2)
         sl = s2.split("/")
         for v in sl:
-            ret.add(v.strip())
+            ret.add(v.strip().lower())
     return ret
