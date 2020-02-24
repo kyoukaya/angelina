@@ -1,12 +1,15 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # coding=utf-8
 
 import asyncio
-import websockets
-from client import Client
-loop = asyncio.get_event_loop()
 
+import websockets
+
+from client import Client
+
+loop = asyncio.get_event_loop()
 client = Client(None, loop)
+
 
 async def main(uri: str):
     loop = asyncio.get_event_loop()
@@ -15,7 +18,8 @@ async def main(uri: str):
         recv_loop = loop.create_task(client.recv_loop())
         await asyncio.gather(recv_loop)
 
+
 try:
-    asyncio.get_event_loop().run_until_complete(main('ws://localhost:8000/ws'))
+    asyncio.get_event_loop().run_until_complete(main("ws://localhost:8000/ws"))
 except KeyboardInterrupt:
     client.shutdown()
