@@ -2,31 +2,32 @@
 
 import asyncio
 from json import dumps, loads
-from typing import Callable, Dict, List
+from typing import Awaitable, Callable, Dict, List
 
-from websockets import WebSocketClientProtocol
+import websockets
 from websockets.exceptions import ConnectionClosed, ConnectionClosedError
 
 from .recruit import Recruit
 
 
 class Client:
-    def __init__(self, ws: WebSocketClientProtocol, loop: asyncio.AbstractEventLoop):
-        self.ws = ws
-        self.loop = loop
-        self.handlers: Dict[str, Callable[[str], None]] = {
+    def __init__(self, base_url: str):
+        self.loop = asyncio.get_event_loop()
+        self.handlers: Dict[str, Callable[[str, str], Awaitable[None]]] = {
             "S_UserList": self.handle_userlist,
             "S_NewUser": self.handle_newuser,
             "S_Attached": self.handle_attached,
             "S_Detached": self.handle_detach,
             "S_HookEvt": self.handle_hookevt,
             "S_Get": self.handle_get,
+            "S_Hooked": self.handle_dummy,
         }
         self.attached_user = ""
+        self.base_url = base_url
         # Load data required for parsing tags
-        self.recruit = Recruit()
+        self.recruit = Recruit(base_url)
 
-    async def handle_userlist(self, payload: str):
+    async def handle_userlist(self, op: str, payload: str):
         users: List[str] = loads(payload)
         if len(users) > 0:
             # Attempt to attach to the most recently connected user.
@@ -35,20 +36,20 @@ class Client:
         return self.handlers["S_UserList"]
 
     # Dummy handler for server packets we're not really interested in.
-    async def handle_dummy(self, payload: str):
+    async def handle_dummy(self, op: str, payload: str):
         pass
 
-    async def handle_newuser(self, payload: str):
+    async def handle_newuser(self, op: str, payload: str):
         user: str = loads(payload)
         # Attempt to attach to a new user
         if self.attached_user != "":
             await self.send_detach()
         await self.send_attach(user)
 
-    async def handle_get(self, payload: str):
+    async def handle_get(self, op: str, payload: str):
         self.recruit.parse_tags(payload)
 
-    async def handle_attached(self, payload: str):
+    async def handle_attached(self, op: str, payload: str):
         # Successfully attached to a user.
         user = loads(payload)
         self.attached_user = user
@@ -59,10 +60,10 @@ class Client:
         await self.send_hook("packet", "S/gacha/finishNormalGacha", True)
         await self.send_hook("packet", "S/gacha/refreshTags", True)
 
-    async def handle_detach(self, payload: str):
+    async def handle_detach(self, op: str, payload: str):
         self.attached_user = ""
 
-    async def handle_hookevt(self, payload: str):
+    async def handle_hookevt(self, op: str, payload: str):
         # We initialized the 2 hooks earlier as event hooks, so they won't receive
         # any useful information. We'll just know that the client has received
         # either syncNormalGacha (sent when entering the recruitment page) or
@@ -84,23 +85,26 @@ class Client:
     async def send_detach(self):
         await self.ws.send("C_Detach")
 
-    async def recv_loop(self):
-        try:
-            while True:
-                s: str = await self.ws.recv()
-                toks = s.split(" ", maxsplit=1)
-                op = toks[0]
-                payload = ""
-                n_toks = len(toks)
-                if n_toks >= 2:
-                    payload = toks[1]
-                handler = self.handlers.get(op)
-                if handler is None:
-                    print(f"{op} {payload}")
-                    continue
-                self.loop.create_task(handler(payload)) # type:ignore
-        except (ConnectionClosed, ConnectionClosedError):
-            pass
+    async def run(self):
+        async with websockets.connect(f"ws://{self.base_url}/ws") as ws:
+            self.ws = ws
+            try:
+                while True:
+                    s: str = await ws.recv()
+                    toks = s.split(" ", maxsplit=1)
+                    op = toks[0]
+                    n_toks = len(toks)
+                    if n_toks >= 2:
+                        payload = toks[1]
+                    else:
+                        payload = ""
+                    handler = self.handlers.get(op)
+                    if handler is None:
+                        print(f"Unhandled op:{op}, payload:{payload}")
+                        continue
+                    await handler(op, payload)
+            except (ConnectionClosed, ConnectionClosedError):
+                pass
 
     def shutdown(self):
         tasks = self.loop.create_task(self.ws.close())

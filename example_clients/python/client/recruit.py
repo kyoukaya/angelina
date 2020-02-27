@@ -1,14 +1,17 @@
 # coding=utf-8
 
-from gzip import decompress
 from itertools import combinations
 from json import loads
 from re import sub
-from typing import Dict, List, Set, Tuple
+from typing import Dict, List, Set
 from urllib.request import Request, urlopen
 
-GACHA_TABLE_URL = "https://raw.githubusercontent.com/Kengxxiao/ArknightsGameData/master/en_US/gamedata/excel/gacha_table.json"
-CHAR_TABLE_URL = "https://raw.githubusercontent.com/Kengxxiao/ArknightsGameData/master/en_US/gamedata/excel/character_table.json"
+
+# Whatever regions rhine's gamedata supports, which are "en_US" and "ja_JP" at
+# the time of writing.
+REGION = "en_US"
+GACHA_TABLE_URL = f"/ange/static/{REGION}/gamedata/excel/gacha_table.json"
+CHAR_TABLE_URL = f"/ange/static/{REGION}/gamedata/excel/character_table.json"
 
 PROFESSION_TO_TAG = {
     "MEDIC": 4,
@@ -47,9 +50,9 @@ class Recruit:
     whose target is 'recruit.normal.slots' to print tag combinations.
     """
 
-    def __init__(self):
+    def __init__(self, base_url: str):
         print("loading tag data...")
-        data = loads(get_url(GACHA_TABLE_URL))
+        data = loads(get_url(base_url + GACHA_TABLE_URL))
         # parse_recruitable_chars is incredibly janky and can break at any time
         # or perhaps for different languages. But it's a necessity.
         self.recruitable = parse_recruitable_chars(data["recruitDetail"])
@@ -58,7 +61,7 @@ class Recruit:
         tagIdToOpSet = {k: set() for k in self.tag_to_name}
 
         print("loading character data...")
-        data = loads(get_url(CHAR_TABLE_URL))
+        data = loads(get_url(base_url + CHAR_TABLE_URL))
         char_data = {}
         for k, v in data.items():
             # Some UGLY data processing
@@ -91,7 +94,7 @@ class Recruit:
 
         self.tagNameToId = name_to_tag
         self.tagIdToOpSet = tagIdToOpSet
-        print("done")
+        print("ready")
 
     def parse_tags(self, payload: str):
         slots: Dict[str, Dict] = loads(payload)["data"]
@@ -105,7 +108,7 @@ class Recruit:
             # Consider combinations for tags (1,4)
             for nTags in range(1, 4):
                 for tagComb in combinations(range(n_choices), nTags):
-                    tagComb = tuple(tag_choices[v] for v in tagComb)
+                    tagComb = [tag_choices[v] for v in tagComb]
                     char_sets: List[Set] = []
                     for tag in tagComb:
                         char_sets.append(self.tagIdToOpSet[tag])
@@ -117,35 +120,44 @@ class Recruit:
                     if len(result) > 0:
                         self._print_results(tagComb, result)
 
-    def _print_results(self, comb: Tuple[int], id_set: Set):
+    def _print_results(self, comb: List[int], id_set: Set):
         # Print results from analyzing recruitment tags.
         # Params:
-        #   - comb : a tupple of tag IDs
+        #   - comb : a list of tag IDs
         #   - id_set: a set of character IDs that match the combination
+        filtered_chars: List[str]
+        if len(comb) == 1 and comb[0] == ROBOT_TAG:
+            # Special case for the robot tag
+            filtered_chars = [self.char_data[char_id]["name"] for char_id in id_set]
+        else:
+            filtered_chars = self._filter_chars(id_set)
+        # Only print the tag combinations if we find something good
+        if len(filtered_chars) > 0:
+            tag_names = [self.tag_to_name[v] for v in comb]
+            len_minus = len(tag_names) - 1
+            s = "["
+            for i, name in enumerate(tag_names):
+                s += name
+                if i < len_minus:
+                    s += ", "
+            s += "] -> ["
+            len_minus = len(filtered_chars) - 1
+            for i, name in enumerate(filtered_chars):
+                s += name
+                if i < len_minus:
+                    s += ", "
+            s += "]"
+            print(s)
+
+    def _filter_chars(self, id_set: Set) -> List[str]:
         filtered_chars: List[str] = []
-        min_rarity = 10
-        high_rarity = -1
         for char_id in id_set:
             char = self.char_data[char_id]
             rarity = char["rarity"]
-            if rarity < min_rarity:
-                min_rarity = rarity
-            if rarity > high_rarity:
-                high_rarity = rarity
-            if rarity == 0:
-                # Robot!
-                filtered_chars.append(char["name"])
-            elif rarity >= RARITY_THRESH:
-                filtered_chars.append(char["name"])
-
-        if (min_rarity == 0 and high_rarity != 0) or min_rarity < RARITY_THRESH:
-            # Return if it's not a robot-only tag or the min rarity is below our thresh
-            return
-
-        # Only print the tag combinations if we find something good!
-        if len(filtered_chars) > 0:
-            tag_names = [self.tag_to_name[v] for v in comb]
-            print(f"{tag_names} -> {filtered_chars}")
+            if rarity < RARITY_THRESH:
+                return []
+            filtered_chars.append(char["name"])
+        return filtered_chars
 
 
 def parse_recruitable_chars(s: str) -> Set[str]:
@@ -169,8 +181,6 @@ def parse_recruitable_chars(s: str) -> Set[str]:
 
 
 def get_url(url: str):
-    req = Request(url)
-    req.add_header("Accept-Encoding", "gzip")
+    req = Request("http://" + url)
     response = urlopen(req)
-    content = decompress(response.read())
-    return content.decode("utf-8")
+    return response.read().decode("utf-8")
