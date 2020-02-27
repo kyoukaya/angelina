@@ -82,7 +82,7 @@ func (c *Client) addHook(data *msg.Hook) error {
 	case packetHook:
 		hook = c.mod.Hook(data.Target, 0, c.hookHandler)
 	case gameStateHook:
-		hook = c.mod.StateHook(data.Target, c.listener, !data.Event)
+		hook = c.mod.StateHook(data.Target, c.listener, data.Event)
 	default:
 		return fmt.Errorf("Unknown hook type '%s'", data.Kind)
 	}

@@ -8,6 +8,7 @@ import (
 	"github.com/kyoukaya/rhine/log"
 	"github.com/kyoukaya/rhine/proxy"
 	"github.com/kyoukaya/rhine/utils"
+	"github.com/kyoukaya/rhine/utils/gamedata"
 )
 
 var (
@@ -17,6 +18,7 @@ var (
 
 type Hub struct {
 	log.Logger
+	gamedata *gamedata.GameData
 
 	// Maps a user ID to a slice of attached clients
 	attachedClients map[string][]*Client
@@ -41,6 +43,10 @@ func start(logger log.Logger) {
 	if !flag.Parsed() {
 		flag.Parse()
 	}
+	gd, err := gamedata.New("GL", logger)
+	if err != nil {
+		panic(err)
+	}
 	ange := &Hub{
 		Logger:          logger,
 		attachedClients: make(map[string][]*Client),
@@ -51,6 +57,7 @@ func start(logger log.Logger) {
 		messages:        make(chan *messageT),
 		register:        make(chan *Client),
 		unregister:      make(chan *Client),
+		gamedata:        gd,
 	}
 	go ange.run()
 	mux := http.NewServeMux()
@@ -64,6 +71,8 @@ func start(logger log.Logger) {
 	mux.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		ange.ServeWs(w, r)
 	})
+	mux.Handle("/ange/static/",
+		http.StripPrefix("/ange/static/", http.FileServer(http.Dir(utils.BinDir+"data"))))
 	proxy.RegisterInitFunc(modName, ange.modInitFunc)
 	go func() {
 		err := http.ListenAndServe(*host, mux)
