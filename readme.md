@@ -51,4 +51,4 @@ S_Detached
 
 ## Examples
 
-TBD. Python and javascript/typescript example clients planned.
+Example python3 client: [Recruitment Tag Calculator](https://github.com/kyoukaya/angelina/tree/dev/example_clients/python) prints recruitment tag combinations that guarantee a 4* or higher when recruiting.
