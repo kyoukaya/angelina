@@ -11,10 +11,8 @@ import (
 	"github.com/kyoukaya/rhine/utils/gamedata"
 )
 
-var (
-	staticDir = flag.String("ange-static", "", "path to static files to serve on the root URL. Serving disabled if empty string.")
-	host      = flag.String("ange-host", ":8000", "host on which ange is served")
-)
+var staticDir = flag.String("ange-static", "", "path to static files to serve on the root URL. Serving disabled if empty string.")
+var host = flag.String("ange-host", ":8000", "host on which ange is served")
 
 type Hub struct {
 	log.Logger

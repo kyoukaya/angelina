@@ -4,7 +4,7 @@ import (
 	"flag"
 	"log"
 
-	_ "github.com/kyoukaya/angelina/angelina"
+	angelina "github.com/kyoukaya/angelina/angelina"
 	"github.com/kyoukaya/rhine/proxy"
 )
 
@@ -13,10 +13,13 @@ var silent = flag.Bool("silent", false, "don't print anything to stdout")
 var filter = flag.Bool("filter", false, "enable the host filter")
 var verbose = flag.Bool("v", false, "print Rhine verbose messages")
 var verboseGoProxy = flag.Bool("v-goproxy", false, "print verbose goproxy messages")
-var host = flag.String("host", ":8080", "hostname:port")
+var host = flag.String("host", ":8080", "host on which the proxy is served")
+var unsafeOrigin = flag.Bool("unsafe-origin", false, "allow any HTTP request, "+
+	"no matter what origin they specify, to upgrade into a ws connection")
 
 func main() {
 	flag.Parse()
+	angelina.SetUpgradeOrigin(*unsafeOrigin)
 	options := &proxy.Options{
 		LogPath:          *logPath,
 		LogDisableStdOut: *silent,

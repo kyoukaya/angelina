@@ -32,8 +32,18 @@ var (
 )
 
 var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
+	ReadBufferSize:  512,
 	WriteBufferSize: 1024,
+}
+
+func SetUpgradeOrigin(unsafe bool) {
+	if unsafe {
+		upgrader.CheckOrigin = func(r *http.Request) bool {
+			return true
+		}
+	} else {
+		upgrader.CheckOrigin = nil
+	}
 }
 
 // Client is a middleman between the websocket connection and the hub.
