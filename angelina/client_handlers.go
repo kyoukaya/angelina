@@ -7,7 +7,7 @@ import (
 	"github.com/kyoukaya/angelina/angelina/msg"
 )
 
-type clientMessageHandler func(h *Hub, client *Client, payload []byte) error
+type clientMessageHandler func(h *Ange, client *Client, payload []byte) error
 
 var clientHandlerMap = map[string]clientMessageHandler{
 	"C_Attach": handleCAttach,
@@ -17,7 +17,7 @@ var clientHandlerMap = map[string]clientMessageHandler{
 	"C_Unhook": handleCUnhook,
 }
 
-func handleCAttach(h *Hub, client *Client, payload []byte) error {
+func handleCAttach(h *Ange, client *Client, payload []byte) error {
 	id, err := msg.UnmarshalClientAttach(payload)
 	if err != nil {
 		return err
@@ -43,7 +43,7 @@ func handleCAttach(h *Hub, client *Client, payload []byte) error {
 	return nil
 }
 
-func handleCDetach(h *Hub, client *Client, payload []byte) error {
+func handleCDetach(h *Ange, client *Client, payload []byte) error {
 	if client.mod == nil {
 		return fmt.Errorf("Client was not attached")
 	}
@@ -56,7 +56,7 @@ func handleCDetach(h *Hub, client *Client, payload []byte) error {
 	return nil
 }
 
-func handleCGet(h *Hub, client *Client, payload []byte) error {
+func handleCGet(h *Ange, client *Client, payload []byte) error {
 	if client.mod == nil {
 		return fmt.Errorf("Client is not attached")
 	}
@@ -76,7 +76,7 @@ func handleCGet(h *Hub, client *Client, payload []byte) error {
 	return nil
 }
 
-func handleCHook(h *Hub, client *Client, payload []byte) error {
+func handleCHook(h *Ange, client *Client, payload []byte) error {
 	if client.mod == nil {
 		return fmt.Errorf("Client is not attached")
 	}
@@ -87,7 +87,7 @@ func handleCHook(h *Hub, client *Client, payload []byte) error {
 	return client.addHook(data)
 }
 
-func handleCUnhook(h *Hub, client *Client, payload []byte) error {
+func handleCUnhook(h *Ange, client *Client, payload []byte) error {
 	idStr, err := msg.UnmarshalClientUnhook(payload)
 	if err != nil {
 		return err

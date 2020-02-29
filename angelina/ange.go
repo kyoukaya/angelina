@@ -1,22 +1,22 @@
 package angelina
 
 import (
-	"flag"
 	"net/http"
 	"path"
 
+	"github.com/gorilla/websocket"
 	"github.com/kyoukaya/rhine/log"
 	"github.com/kyoukaya/rhine/proxy"
 	"github.com/kyoukaya/rhine/utils"
 	"github.com/kyoukaya/rhine/utils/gamedata"
 )
 
-var staticDir = flag.String("ange-static", "", "path to static files to serve on the root URL. Serving disabled if empty string.")
-var host = flag.String("ange-host", ":8000", "host on which ange is served")
-
-type Hub struct {
+type Ange struct {
 	log.Logger
-	gamedata *gamedata.GameData
+	gamedata  *gamedata.GameData
+	staticDir string
+	host      string
+	upgrader  websocket.Upgrader
 
 	// Maps a user ID to a slice of attached clients
 	attachedClients map[string][]*Client
@@ -37,16 +37,26 @@ type Hub struct {
 	unregister chan *Client
 }
 
-func start(logger log.Logger) {
-	if !flag.Parsed() {
-		flag.Parse()
+const (
+	wsReadBufSiz  = 512
+	wsWriteBufSiz = 1024
+)
+
+func New(staticDir, host string, unsafeOrigin bool) *Ange {
+	var checkFunc func(r *http.Request) bool
+	if unsafeOrigin {
+		checkFunc = func(r *http.Request) bool {
+			return true
+		}
 	}
-	gd, err := gamedata.New("GL", logger)
-	if err != nil {
-		panic(err)
-	}
-	ange := &Hub{
-		Logger:          logger,
+	ange := &Ange{
+		staticDir: staticDir,
+		host:      host,
+		upgrader: websocket.Upgrader{
+			ReadBufferSize:  wsReadBufSiz,
+			WriteBufferSize: wsWriteBufSiz,
+			CheckOrigin:     checkFunc,
+		},
 		attachedClients: make(map[string][]*Client),
 		modules:         make(map[string]*angeModule),
 		clients:         make(map[*Client]bool),
@@ -55,12 +65,21 @@ func start(logger log.Logger) {
 		messages:        make(chan *messageT),
 		register:        make(chan *Client),
 		unregister:      make(chan *Client),
-		gamedata:        gd,
 	}
-	go ange.run()
+	return ange
+}
+
+func (ange *Ange) Run(logger log.Logger) {
+	gd, err := gamedata.New("GL", logger)
+	if err != nil {
+		panic(err)
+	}
+	ange.gamedata = gd
+	ange.Logger = logger
+	go ange.runHub()
 	mux := http.NewServeMux()
-	if *staticDir != "" {
-		dir := *staticDir
+	if ange.staticDir != "" {
+		dir := ange.staticDir
 		if !path.IsAbs(dir) {
 			dir = utils.BinDir + dir
 		}
@@ -73,15 +92,11 @@ func start(logger log.Logger) {
 		http.StripPrefix("/ange/static/", http.FileServer(http.Dir(utils.BinDir+"data"))))
 	proxy.RegisterInitFunc(modName, ange.modInitFunc)
 	go func() {
-		err := http.ListenAndServe(*host, mux)
+		ange.Printf("[Ange] listening on %s", ange.host)
+		err := http.ListenAndServe(ange.host, mux)
 		if err != nil {
 			ange.Warnln("[Ange] ListenAndServe: ", err)
 			panic(err)
 		}
 	}()
-	ange.Printf("[Ange] listening on %s", *host)
-}
-
-func init() {
-	proxy.OnStart(start)
 }

@@ -31,26 +31,11 @@ var (
 	space   = []byte{' '}
 )
 
-var upgrader = websocket.Upgrader{
-	ReadBufferSize:  512,
-	WriteBufferSize: 1024,
-}
-
-func SetUpgradeOrigin(unsafe bool) {
-	if unsafe {
-		upgrader.CheckOrigin = func(r *http.Request) bool {
-			return true
-		}
-	} else {
-		upgrader.CheckOrigin = nil
-	}
-}
-
 // Client is a middleman between the websocket connection and the hub.
 type Client struct {
-	hub         *Hub
+	ange        *Ange
 	mod         *proxy.RhineModule
-	hookCounter uint64
+	hookCounter uint64 // Incrementing counter to produce unique hook IDs
 	hooks       map[uint64]*clientHook
 	listener    chan gamestate.StateEvent
 
@@ -65,7 +50,7 @@ func (c *Client) sendWrapper(data []byte) {
 	select {
 	case c.send <- data:
 	default:
-		c.hub.Warnf("[Ange] Failed to send data to %p", c)
+		c.ange.Warnf("[Ange] Failed to send data to %p", c)
 	}
 }
 
@@ -115,7 +100,7 @@ func (c *Client) addHook(data *msg.Hook) error {
 func (c *Client) hookHandler(op string, data []byte, pktCtx *goproxy.ProxyCtx) []byte {
 	b, err := msg.ServerHookEvt(packetHook, op, json.RawMessage(data))
 	if err != nil {
-		c.hub.Warnln("[Ange] ", err)
+		c.ange.Warnln("[Ange] ", err)
 		return data
 	}
 	c.sendWrapper(b)
@@ -130,7 +115,7 @@ func (c *Client) stateListener() {
 		}
 		b, err := msg.ServerHookEvt(gameStateHook, l.Path, l.Payload)
 		if err != nil {
-			c.hub.Warnln("[Ange] ", err)
+			c.ange.Warnln("[Ange] ", err)
 			continue
 		}
 		c.sendWrapper(b)
@@ -144,13 +129,13 @@ func (c *Client) stateListener() {
 // reads from this goroutine.
 func (c *Client) readPump() {
 	defer func() {
-		c.hub.unregister <- c
+		c.ange.unregister <- c
 		c.conn.Close()
 	}()
 	// c.conn.SetReadLimit(maxMessageSize)
 	err := c.conn.SetReadDeadline(time.Now().Add(pongWait))
 	if err != nil {
-		c.hub.Warnln("[Ange] ", err)
+		c.ange.Warnln("[Ange] ", err)
 		return
 	}
 	c.conn.SetPongHandler(func(string) error {
@@ -160,12 +145,12 @@ func (c *Client) readPump() {
 		_, msg, err := c.conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure, websocket.CloseNormalClosure) {
-				c.hub.Warnln("[Ange] ", err)
+				c.ange.Warnln("[Ange] ", err)
 			}
 			break
 		}
 		msg = bytes.TrimSpace(bytes.Replace(msg, newline, space, -1))
-		c.hub.messages <- &messageT{
+		c.ange.messages <- &messageT{
 			client:  c,
 			payload: msg,
 		}
@@ -192,7 +177,7 @@ func (c *Client) writePump() {
 			}
 			err := c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if err != nil {
-				c.hub.Warnln("[Ange] ", err)
+				c.ange.Warnln("[Ange] ", err)
 				continue
 			}
 
@@ -202,7 +187,7 @@ func (c *Client) writePump() {
 			}
 			_, err = w.Write(message)
 			if err != nil {
-				c.hub.Warnln("[Ange] ", err)
+				c.ange.Warnln("[Ange] ", err)
 				continue
 			}
 
@@ -212,7 +197,7 @@ func (c *Client) writePump() {
 		case <-ticker.C:
 			err := c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if err != nil {
-				c.hub.Warnln("[Ange] ", err)
+				c.ange.Warnln("[Ange] ", err)
 				return
 			}
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
@@ -223,20 +208,20 @@ func (c *Client) writePump() {
 }
 
 // ServeWs handles websocket requests from the peer.
-func (hub *Hub) ServeWs(w http.ResponseWriter, r *http.Request) {
-	conn, err := upgrader.Upgrade(w, r, nil)
+func (ange *Ange) ServeWs(w http.ResponseWriter, r *http.Request) {
+	conn, err := ange.upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		hub.Warnf("[Ange] %s", err.Error())
+		ange.Warnf("[Ange] %s", err.Error())
 		return
 	}
 	client := &Client{
-		hub:      hub,
+		ange:     ange,
 		hooks:    make(map[uint64]*clientHook),
 		listener: make(chan gamestate.StateEvent, 32),
 		conn:     conn,
 		send:     make(chan []byte, 128),
 	}
-	client.hub.register <- client
+	client.ange.register <- client
 
 	go client.stateListener()
 	go client.writePump()

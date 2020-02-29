@@ -9,9 +9,9 @@ type clientHook struct {
 	hook   proxy.Hooker
 }
 
+const gameStateHook = "gamestate"
+const packetHook = "packet"
+
 func (ch *clientHook) Unhook() {
 	ch.hook.Unhook()
 }
-
-const gameStateHook = "gamestate"
-const packetHook = "packet"

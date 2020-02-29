@@ -12,18 +12,18 @@ const modName = "Angelina Module"
 // create and destroy hooks.
 type angeModule struct {
 	*proxy.RhineModule
-	*Hub
+	*Ange
 }
 
 func getModIdentifier(mod *proxy.RhineModule) string {
 	return mod.Region + "_" + strconv.Itoa(mod.UID)
 }
 
-func (c *angeModule) shutdown(bool) {
-	c.Hub.modDetach <- c
+func (mod *angeModule) shutdown(bool) {
+	mod.Ange.modDetach <- mod
 }
 
-func (hub *Hub) modInitFunc(mod *proxy.RhineModule) {
+func (hub *Ange) modInitFunc(mod *proxy.RhineModule) {
 	module := &angeModule{mod, hub}
 	hub.modAttach <- module
 	mod.OnShutdown(module.shutdown)
