@@ -9,6 +9,7 @@ import (
 	"github.com/kyoukaya/rhine/proxy"
 	"github.com/kyoukaya/rhine/utils"
 	"github.com/kyoukaya/rhine/utils/gamedata"
+	"github.com/rs/cors"
 )
 
 type Ange struct {
@@ -93,7 +94,8 @@ func (ange *Ange) Run(logger log.Logger) {
 	proxy.RegisterInitFunc(modName, ange.modInitFunc)
 	go func() {
 		ange.Printf("[Ange] listening on %s", ange.host)
-		err := http.ListenAndServe(ange.host, mux)
+		handler := cors.Default().Handler(mux)
+		err := http.ListenAndServe(ange.host, handler)
 		if err != nil {
 			ange.Warnln("[Ange] ListenAndServe: ", err)
 			panic(err)
