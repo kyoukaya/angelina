@@ -1,6 +1,37 @@
 # angelina
 
-A websocket server built on top of [Rhine](https://github.com/kyoukaya/rhine) that acts as a messenger, allowing developers to listen on game events and pull information from a user's game state from any language with a websocket client.
+A websocket server built on top of [Rhine](https://github.com/kyoukaya/rhine) that acts as a messenger, allowing clients to listen on game events and pull information from a user's game state from any programming language with a websocket library.
+
+## Usage
+
+angelina can be used as a rhine module and incorporated into a go program, see [main.go](https://github.com/kyoukaya/angelina/blob/master/cmd/main.go).
+It can also be used standalone either from a [binary release](https://github.com/kyoukaya/angelina/releases) for users, or simply `go run cmd/main.go` for developers.
+
+```
+$ ./main.exe -help
+Usage of C:\Users\kaya\Documents\ange\angelina\main.exe:
+  -ange-host string
+        host on which ange is served (default ":8000")
+  -ange-static string
+        path to static files to serve on the root URL. Serving disabled if empty string.
+  -disable-cert-store
+        disables the built in certstore, reduces memory usage but increases HTTP latency and CPU usage
+  -filter
+        enable the host filter
+  -host string
+        host on which the proxy is served (default ":8080")
+  -log-path string
+        file to output the log to (default "logs/proxy.log")
+  -no-unk-json
+        disallows unknown fields when unmarshalling json in the gamestate module
+  -silent
+        don't print anything to stdout
+  -unsafe-origin
+        allow any HTTP request, no matter what origin they specify, to upgrade into a ws connection
+  -v    print Rhine verbose messages
+  -v-goproxy
+        print verbose goproxy messages
+```
 
 ## Protocol
 
@@ -51,4 +82,6 @@ S_Detached
 
 ## Examples
 
-Example python3 client: [Recruitment Tag Calculator](https://github.com/kyoukaya/angelina/tree/dev/example_clients/python) prints recruitment tag combinations that guarantee a 4* or higher when recruiting.
+- [Recruitment Tag Calculator](https://github.com/kyoukaya/angelina/tree/dev/example_clients/python) is a simple Python3 cli application that prints recruitment tag combinations that guarantee a 4* or higher when recruiting.
+- [ifrit](https://github.com/kyoukaya/ifrit) is a multi-purpose web based toolkit written in Vue.js + Typescript currently in development.
+angelina's static file serving capability is intended for use with such frameworks.

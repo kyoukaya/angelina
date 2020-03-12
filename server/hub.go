@@ -1,10 +1,10 @@
-package angelina
+package server
 
 import (
 	"bytes"
 	"fmt"
 
-	"github.com/kyoukaya/angelina/angelina/msg"
+	"github.com/kyoukaya/angelina/server/msg"
 )
 
 // Main event loop

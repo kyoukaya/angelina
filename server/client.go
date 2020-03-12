@@ -1,4 +1,4 @@
-package angelina
+package server
 
 import (
 	"bytes"
@@ -12,7 +12,7 @@ import (
 	"github.com/kyoukaya/rhine/proxy"
 	"github.com/kyoukaya/rhine/proxy/gamestate"
 
-	"github.com/kyoukaya/angelina/angelina/msg"
+	"github.com/kyoukaya/angelina/server/msg"
 )
 
 const (

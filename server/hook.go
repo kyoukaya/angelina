@@ -1,4 +1,4 @@
-package angelina
+package server
 
 import "github.com/kyoukaya/rhine/proxy"
 

@@ -1,10 +1,10 @@
-package angelina
+package server
 
 import (
 	"fmt"
 	"strconv"
 
-	"github.com/kyoukaya/angelina/angelina/msg"
+	"github.com/kyoukaya/angelina/server/msg"
 )
 
 type clientMessageHandler func(h *Ange, client *Client, payload []byte) error

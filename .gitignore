@@ -6,6 +6,7 @@
 *.pem
 data/
 *.json
+*.zip
 
 # Python files
 venv/

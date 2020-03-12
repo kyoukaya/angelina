@@ -1,4 +1,4 @@
-package angelina
+package server
 
 type messageT struct {
 	client  *Client

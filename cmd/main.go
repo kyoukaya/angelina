@@ -4,7 +4,7 @@ import (
 	"flag"
 	"log"
 
-	angelina "github.com/kyoukaya/angelina/angelina"
+	"github.com/kyoukaya/angelina/server"
 	"github.com/kyoukaya/rhine/proxy"
 )
 
@@ -35,7 +35,7 @@ func main() {
 		NoUnknownJSON:    *noUnknownJSON,
 	}
 	rhine := proxy.NewProxy(options)
-	ange := angelina.New(*staticDir, *angeHost, *unsafeOrigin)
+	ange := server.New(*staticDir, *angeHost, *unsafeOrigin)
 	ange.Run(rhine.Logger)
 	rhine.Start()
 }
