@@ -170,7 +170,10 @@ def parse_recruitable_chars(s: str) -> Set[str]:
         start_s = STAR_TOK * rarity + "\n"
         start_pos = s.find(start_s, min_pos) + len(start_s)
         end_pos = s.find("\n-", start_pos)
-        s2 = s[start_pos:end_pos]
+        if end_pos == -1:
+            s2 = s[start_pos:]
+        else:
+            s2 = s[start_pos:end_pos]
         min_pos = end_pos
         # Remove unity markup
         s2 = sub(r"<.*?>", "", s2)
