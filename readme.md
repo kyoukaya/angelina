@@ -82,6 +82,6 @@ S_Detached
 
 ## Examples
 
-- [Recruitment Tag Calculator](https://github.com/kyoukaya/angelina/tree/dev/example_clients/python) is a simple Python3 cli application that prints recruitment tag combinations that guarantee a 4* or higher when recruiting.
+- [Recruitment Tag Calculator](https://github.com/kyoukaya/angelina/tree/master/example_clients/python) is a simple Python3 cli application that prints recruitment tag combinations that guarantee a 4* or higher when recruiting.
 - [ifrit](https://github.com/kyoukaya/ifrit) is a multi-purpose web based toolkit written in Vue.js + Typescript currently in development.
 angelina's static file serving capability is intended for use with such frameworks.
